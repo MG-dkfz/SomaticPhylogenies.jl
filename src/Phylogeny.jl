@@ -276,7 +276,7 @@ In order to equip the founder cells with somatic mutations, a vector `N0` may be
 
 Create `Phylogeny` from an existing CellLineage.
 
-See also: [`Mutationrate`](@ref)
+See also: [`MutationRate`](@ref)
 
 ---
 

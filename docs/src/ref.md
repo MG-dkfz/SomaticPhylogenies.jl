@@ -3,6 +3,7 @@
 ## Cells and lineages
 ```@docs
 Cell
+exists
 exists_at
 CellLineage
 celltime
@@ -21,17 +22,19 @@ MutGenProcess
 DeterministicProcess
 PoissonProcess
 MutationRate
-mutgenprocess(μ::MutationRate{MM, MGP})
-mutation_mode(μ::MutationRate{MM, MGP})
+mutgenprocess(μ::MutationRate{MM, MGP}) where {MM, MGP}
+mutation_mode(μ::MutationRate{MM, MGP}) where {MM, MGP}
 ```
 
 ## Phylogeny
 ```@docs
 Phylogeny
-mutation_mode(phylo::Phylogeny{M})
+mutation_mode(phylo::Phylogeny{M}) where M <: MutationMode
 mutgenprocess(phylo::Phylogeny)
+founder_cells
 population_size
 subpopulation_sizes(phylo::Phylogeny)
+cellgenerations
 num_divisions(phylo::Phylogeny)
 num_mutations(lineage::CellLineage)
 lineage_vector
