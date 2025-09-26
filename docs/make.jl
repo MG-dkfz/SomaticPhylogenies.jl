@@ -19,6 +19,6 @@ makedocs(;
 )
 
 deploydocs(;
-    repo="github.com/mg-dkfz/SomaticPhylogenies.jl",
+    repo="github.com/MG-dkfz/SomaticPhylogenies.jl",
     devbranch="main",
 )
