@@ -1,6 +1,6 @@
-# Phylogenies
+# SomaticPhylogenies
 
-`Phylogenies` provides a framework to simulate the accumulation and dispersion of mutations across a cell population over time.
+`SomaticPhylogenies` provides a framework to simulate the accumulation and dispersion of somatic mutations across a cell population over time.
 Mutation accumulation relies on three types: (i) a single [`Cell`](@ref), (ii) a single [`CellLineage`](@ref), abstracted as a collection of `Cell`s, and (iii) [`Phylogeny`](@ref), a collection of lineages that result from some stochastic process ([`AbstractProcess`](@ref)).
 Implemented processes are [`BirthDeathProcess`](@ref), [`MoranProcess`](@ref) or some combination thereof via [`CompositeProcess`](@ref).
 `Phylogenys` also implements [`MutationMode`](@ref), which allows control over the principal process governing mutation accumulation: [`ReplicationCounter`](@ref) and [`TimeCounter`](@ref).
