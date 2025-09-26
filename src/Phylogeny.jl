@@ -392,14 +392,14 @@ end
 """
     mutation_mode(::Phylogeny) -> MutationMode
 
-Return the `MutationMode` of `phylo`.
+Return the `MutationMode` of `Phylogeny`.
 """
 mutation_mode(phylo::Phylogeny{M}) where M <: MutationMode = M
 
 """
     mutgenprocess(::Phylogeny{M}) -> MutGenProcess
 
-Return the `MutGenProcess` of `phylo.mutation_rate`.
+Return the `MutGenProcess` of `Phylogeny.mutation_rate`.
 """
 mutgenprocess(phylo::Phylogeny) = mutgenprocess(phylo.mutation_rate)
 
