@@ -7,10 +7,8 @@ makedocs(;
     modules=[SomaticPhylogenies],
     authors="Matthias Günther <ma.guenther@dkfz.de>",
     sitename="SomaticPhylogenies.jl",
-    format=Documenter.HTML(;
-        canonical="https://MG-dkfz.github.io/SomaticPhylogenies.jl",
-        edit_link="main",
-        assets=String[],
+    format = Documenter.HTML(
+        prettyurls = false
     ),
     pages=[
         "Home" => "index.md",

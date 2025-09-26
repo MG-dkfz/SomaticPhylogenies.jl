@@ -36,6 +36,7 @@ abstract type AbstractProcess end
         N_max::Real = Inf)
 
 Construct `BirthDeathProcess`. If `δ` is not provided, it is set to `0.0` (pure birth process).
+
 ---
 
 ## Functors
@@ -123,6 +124,7 @@ end
 `MoranProcess` with turnover rate `λ` and population size `N`.
 
 `MoranProcess` terminates after duration `Δt`.
+
 ---
 
 ## Constructors
@@ -130,6 +132,7 @@ end
     MoranProcess(N::Integer, Δt::Real)
 
 Construct `MoranProcess`. If `λ` is not provided, it is set to `1.0`.
+
 ---
 
 ## Functors
