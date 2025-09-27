@@ -43,7 +43,7 @@ Furthermore, the [`SamplingMode`](@ref) must be specified; we opt for [`PoissonB
 
 ```julia
 depth = 90
-vaf_edges = 0.05:0.025:1
+vaf_edges = 0.05:0.05:1
 wgs = WholeGenomeSequencing(PoissonBinomialSampling, vaf_edges, depth; read_min=3)
 seq_res = wgs(phylo)
 ```
