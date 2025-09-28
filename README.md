@@ -4,4 +4,4 @@
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://mg-dkfz.github.io/SomaticPhylogenies.jl/dev/)
 [![Build Status](https://github.com/mg-dkfz/SomaticPhylogenies.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/mg-dkfz/SomaticPhylogenies.jl/actions/workflows/CI.yml?query=branch%3Amain)
 
-[Documentation](https://mg-dkfz.github.io/SomaticPhylogenies.jl/dev/)
+[Documentation](https://mg-dkfz.github.io/SomaticPhylogenies.jl)
