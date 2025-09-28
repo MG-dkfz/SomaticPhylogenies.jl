@@ -388,7 +388,7 @@ Return the `MutationMode` of `Phylogeny`.
 mutation_mode(phylo::Phylogeny{M}) where M <: MutationMode = M
 
 """
-    mutgenprocess(::Phylogeny{M}) -> MutGenProcess
+    mutgenprocess(::Phylogeny) -> MutGenProcess
 
 Return the `MutGenProcess` of `Phylogeny.mutation_rate`.
 """
@@ -399,7 +399,9 @@ mutgenprocess(phylo::Phylogeny) = mutgenprocess(phylo.mutation_rate)
 
 Return the founder cells of `Phylogeny`.
 """
-founder_cells(phylo::Phylogeny) = unique(lin[1] for lin in phylo)
+function founder_cells(phylo::Phylogeny)
+    unique(cell_at(phylo.t0, lin) for lin in phylo)
+end
 
 """
     population_size(::Phylogeny) -> Int
