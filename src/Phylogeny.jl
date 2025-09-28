@@ -236,16 +236,16 @@ function (μ::MutationRate{TimeCounter, PoissonProcess})(cell::Cell, t)
 end
 
 """
-    mutation_mode(::MutationRate) -> MutationMode
+    mutgenprocess(::MutationRate) -> MutGenProcess
 
-Return the `MutationMode` of `MutationRate`.
+Return the `MutGenProcess` of `MutationRate`.
 """
 mutgenprocess(μ::MutationRate{MM, MGP}) where {MM, MGP} = MGP
 
 """
-    mutgenprocess(::MutationRate) -> MutGenProcess
+    mutation_mode(::MutationRate) -> MutationMode
 
-Return the `MutGenProcess` of `MutationRate`.
+Return the `MutationMode` of `MutationRate`.
 """
 mutation_mode(μ::MutationRate{MM, MGP}) where {MM, MGP} = MM
 
@@ -254,9 +254,9 @@ mutation_mode(μ::MutationRate{MM, MGP}) where {MM, MGP} = MM
 """
     Phylogeny
 
-`Phylogeny` of a cell population at time `t`.
+`Phylogeny` of a cell population at time `t`. Each cell of the population is represented by a `CellLineage` holding its ancestry. Different cells may share part of their ancestry with each other and thus may have common ancestors.
 
-Each cell of the population is represented by a `CellLineage` comprising its mutation history.   
+A `CellLineage` is represented as a vector of `Cell`s, where each `Cell` contains information about the time of its birth, the number of its private mutations, a unique identifier, and its position within `CellLineage`.
 
 ## Fields
 * `lineages::Vector{CellLineage}`
@@ -271,7 +271,7 @@ See also: [`Cell`](@ref), [`CellLineage`](@ref), [`MutationRate`](@ref), [`Abstr
 ## Constructors
     Phylogeny(μ::MutationRate[, N0::Integer, t0])
 
-Create an initial `Phylogeny` with `N0` (default `1`) somatically unmutated founder cells at time `t0` (default `0.0`).
+Create an initial `Phylogeny` with `N0` (default `1`) somatically unmutated founder cells with initial time `t0` (default `0.0`).
 
     Phylogeny(μ::MutationRate, N0::Vector{<:Real}[, t0])
 
