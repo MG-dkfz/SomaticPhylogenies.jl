@@ -135,7 +135,7 @@ Construct `MoranProcess`. If `λ` is not provided, it is set to `1.0`.
 
 ---
 
-## Functors
+## Functors 
     (::MoranProcess)(μ::MutationRate [, t0::Real]) -> Phylogeny
     (::MoranProcess)(μ::MutationRate, N0::Vector[, t0::Real]) -> Phylogeny
     (::MoranProcess)(phylo::Phylogeny) -> Phylogeny
