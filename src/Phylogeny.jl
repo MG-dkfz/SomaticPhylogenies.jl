@@ -186,15 +186,22 @@ struct PoissonProcess <: MutGenProcess end
 """
     MutationRate{MM<:MutationMode, MGP<:MutGenProcess}
 
-Mutation accumulation along a `CellLineage` is determined by `MutationRate`, which has a single field `μ`. Upon each cell division, a `CellLineage` is extended by a new `Cell`, which acquires new mutations specified by `MutationMode` and `MutGenProcess`.
+Determines mutation accumulation along a `CellLineage`.
+
+The two parameters `MutationMode` and `MutGenProcess` specify how the single field `μ` of `MutationRate` is interpreted.
 
 #### MutationMode
-* `ReplicationCounter` : `MutationRate` has a unit of mutations per cell division.
-* `TimeCounter` :  `MutationRate` has a unit of mutations per time and cell, and the number of new mutations in a `Cell` depends on the lifespan of its mother cell.
+* `ReplicationCounter` : `μ` has unit **mutations per cell division** and counts for example the (average) number replication errors. Upon each cell division, each daughter cell inherits all variants from its mother plus a number of novel, private mutations. For `DeterministicProcess` this number is given by `μ`, for `PoissonProcess` `μ` serves as expectation value for a poisson distrution.
+* `TimeCounter` :  `μ` has unit **mutations per cell and time** and counts for example the (average) number of DNA repair errors in between cell divisions. Since these mutations occur before the mother cell divides, both daughter cells inherit the same mutations, which comprise the mutations the mother cell inherited from its mother plus a number of novel mutations, which depend linearly on the lifespan of the mother cell, `Δt`, where `μ` serves as proportionality constant (mutation clock). For `DeterministicProcess` this number is `μ Δt`, while for `PoissonProcess` `μ Δt` serves as expectation value for a poisson distrution.
 
-#### MutGenProcess
-* `DeterministicProcess` : The number of new mutations per `Cell` is either always the same (`ReplicationCounter`) or only dependent on the mother cell's lifespan (`TimeCounter`).
-* `PoissonProcess` : Above is only the average behavior of a Poisson distribution.
+## Constructor
+    MutationRate(
+        [MM::Type{<:MutationMode} = ReplicationCounter,]
+        μ::Real;
+        poisson::Bool = false,
+    )
+
+Construct `MutationRate` with value `μ`. The default `MutationMode` is `ReplicationCounter` and `PoissonProcess` may be specified by setting `poisson = true`.
 
 See also: [`MutationMode`](@ref), [`MutGenProcess`](@ref), [`CellLineage`](@ref)
 """
@@ -245,28 +252,26 @@ mutation_mode(μ::MutationRate{MM, MGP}) where {MM, MGP} = MM
 #--------------------------------------------------------------------------------------------------
 
 """
-    Phylogeny{M<:MutationMode}
+    Phylogeny
 
-`Phylogeny` under `MutationMode` across a cell population at time `t`.
+`Phylogeny` of a cell population at time `t`.
 
-`Phylogeny` serves as both input and output for `AbstractProcess`.
-
-See also: [`AbstractProcess`](@ref), [`MutationMode`](@ref)
+Each cell of the population is represented by a `CellLineage` comprising its mutation history.   
 
 ## Fields
-* `lineages::Vector{CellLineage}` : Each cell of the population is represented by a `CellLineage`.
+* `lineages::Vector{CellLineage}`
 * `t::Real` : The time point of observation.
-* `μ::MutationRate` : The mutation rate.
+* `μ::MutationRate`
 * `uid_counter::Int` : The global uid counter, which ensures that new mutations in a `Cell` are uniquely identified (infinte-site hyothesis).
 
-See also: [`Cell`](@ref), [`CellLineage`](@ref), [`MutationRate`](@ref)
+See also: [`Cell`](@ref), [`CellLineage`](@ref), [`MutationRate`](@ref), [`AbstractProcess`](@ref)
 
 ---
 
 ## Constructors
     Phylogeny(μ::MutationRate[, N0::Integer, t0])
 
-Create initial `Phylogeny{<:MutationMode}` with `N0` (default `1`) somatically unmutated founder cells at initial time `t0` (default `0.0`).
+Create an initial `Phylogeny` with `N0` (default `1`) somatically unmutated founder cells at time `t0` (default `0.0`).
 
     Phylogeny(μ::MutationRate, N0::Vector{<:Real}[, t0])
 
@@ -277,20 +282,6 @@ In order to equip the founder cells with somatic mutations, a vector `N0` may be
 Create `Phylogeny` from an existing CellLineage.
 
 See also: [`MutationRate`](@ref)
-
----
-
-## Interfaces
-* `Iteration -> CellLineage` : applied to `lineages`
-* `Indexing -> CellLineage`  : applied to `lineages`
-* `Broadcasting`             : Scalar
-
----
-
-## Base methods
-* `length` : Number of `lineages`
-* `firstindex`, `lastindex` : first and last index of `lineages`
-* `getindex` : of `lineages`
 """
 struct Phylogeny{M<:MutationMode}
     lineages::Vector{<:CellLineage}
