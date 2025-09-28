@@ -1,14 +1,14 @@
 
 """
-    Cell{T<:Integer, F<:AbstractFloat, M<:Real}
+    Cell
 
 Represents the basic element of a `CellLineage`.
 
 ## Fields
-* `t::F`          : Time point of the cell division that brings the `Cell` into existence.
 * `uid::T`        : Unique identifier of `Cell`.
 * `generation::T` : Position of `Cell` within a `CellLineage`.
-* `mutations::M`  : The number of variants `Cell` represents. These comprise variants that came about in the mother cell or are created during DNA replication in the mother cell.
+* `t::F`          : Time point of the `Cell`s birth.
+* `mutations::M`  : Number of `Cell`'s private mutations.
 
 ## Base methods
 * `==` : compares `uid`
@@ -20,18 +20,36 @@ struct Cell{I<:Integer, F<:AbstractFloat, M<:Real}
     t::F
     generation::I
     mutations::M
-    function Cell(uid::Integer, t::Real, generation::Integer, mutations::M) where M
-        uid < zero(uid) && error("uid must not be negative")
-        uid, generation = promote(uid, generation)
-        t, _ = promote(t, 0.0)
-        new{typeof(uid), typeof(t), M}(uid, t, generation, mutations)
-    end
 end
 
 Cell() = Cell(0, 0.0, 0, 0.0)
 Cell(uid::Integer) = Cell(uid, 0.0)
 Cell(uid::Integer, t::Real) = Cell(uid, t, 0.0)
 Cell(uid::Integer, t::Real, mutations::Real) = Cell(uid, t, 1, mutations)
+function Cell(uid::Integer, t::Real, generation::Integer, mutations::Real)
+    uid < zero(uid) && error("uid must not be negative")
+    uid, generation = promote(uid, generation)
+    Cell(uid, float(t), generation, float(mutations))
+end
+
+# mutable struct Cell{I,F}
+#     const uid::I
+#     const generation::I
+#     const t::F
+#     mutations::F
+# end
+
+# Cell(uid::Integer) = Cell(uid, 0.0)
+# Cell(uid::Integer, t::Real) = Cell(uid, t, 0.0)
+# Cell(uid::Integer, t::Real, mutations::Real) = Cell(uid, t, 1, mutations)
+# function Cell(uid::Integer, generation::Integer, t::Real, mutations::Real)
+#     uid < zero(uid) && error("uid must not be negative")
+#     Cell(promote(uid, generation)..., promote(float(t), mutations)...)
+# end
+
+
+nullcell() = Cell(0, 0.0, 0, 0.0)
+isnullcell(cell::Cell) = cell.uid == 0
 
 Base.show(io::IO, cell::Cell) = print(io, "Cell($(cell.uid), t = $(cell.t))")
 function Base.show(io::IO, ::MIME"text/plain", cell::Cell)
@@ -68,7 +86,7 @@ exists_at(t, cell::Cell) = cell.t ≤ t
 """
     const CellLineage = Vector{Cell}
 
-The successively acquired `Cell`s along `CellLineage`, where each `Cell` marks a cell division.
+Time-continuous sequence of `Cell`s.
 
 See also: [`Cell`](@ref)
 """
@@ -139,7 +157,7 @@ abstract type MutationMode end
 """
     TimeCounter <: MutationMode
 
-Assumes that mutations predominantly result from erroneous DNA repair in between cell divisions, replication errors are neglected. Consequently, the same `uid` is inherited to both daughter `Cell`s. The number of mutations in a `Cell` depends on the how long the mother cell lived.
+Describes that the number of newly arising mutations in a cell increases linearly with the cell's age. Together with the already present mutations, these new mutations are passed on to both daughter cells.
 
 See also: [`Cell`](@ref), [`MutationRate`](@ref)
 """
@@ -148,7 +166,7 @@ struct TimeCounter <: MutationMode end
 """
     ReplicationCounter <: MutationMode
 
-Assumes that mutations predominantly result from DNA replication or single-strand mutations that could not be repaired by an otherwise efficient and (practically) error-free DNA repair mechanism. Consequently, each daughter cell inherits its own `Mutation`. The number of mutations `Mutation` represents is independent of how long the mother cell lived.
+Describes that new mutations occur with each replication event.
 
 See also: [`MutationRate`](@ref)
 """
@@ -159,27 +177,25 @@ struct ReplicationCounter <: MutationMode end
 """
     MutGenProcess
 
-Abstract type that specifies whether the number of mutations a `Cell` acquires is random or deterministic.
+Abstract type that specifies whether or not stochastic fluctuations in the number of newly arising mutations in a cell should be taken into account.
 
 It is either `DeterministicProcess` or `PoissonProcess`.
+
+See [`MutationRate`](@ref).
 """
 abstract type MutGenProcess end
 
 """
     DeterministicProcess <: MutGenProcess
 
-Specifies deterministic mutation accumulation in each `Cell`.
-
-See also: [`MutationRate`](@ref).
+See [`MutationRate`](@ref).
 """
 struct DeterministicProcess <: MutGenProcess end
 
 """
     PoissonProcess <: MutGenProcess
 
-Specifies poisson-distributed mutation accumulation in each `Cell`.
-
-See also: [`MutationRate`](@ref).
+See [`MutationRate`](@ref).
 """
 struct PoissonProcess <: MutGenProcess end
 
@@ -190,7 +206,6 @@ Determines mutation accumulation along a `CellLineage`.
 
 The two parameters `MutationMode` and `MutGenProcess` specify how the single field `μ` of `MutationRate` is interpreted.
 
-#### MutationMode
 * `ReplicationCounter` : `μ` has unit **mutations per cell division** and counts for example the (average) number replication errors. Upon each cell division, each daughter cell inherits all variants from its mother plus a number of novel, private mutations. For `DeterministicProcess` this number is given by `μ`, for `PoissonProcess` `μ` serves as expectation value for a poisson distrution.
 * `TimeCounter` :  `μ` has unit **mutations per cell and time** and counts for example the (average) number of DNA repair errors in between cell divisions. Since these mutations occur before the mother cell divides, both daughter cells inherit the same mutations, which comprise the mutations the mother cell inherited from its mother plus a number of novel mutations, which depend linearly on the lifespan of the mother cell, `Δt`, where `μ` serves as proportionality constant (mutation clock). For `DeterministicProcess` this number is `μ Δt`, while for `PoissonProcess` `μ Δt` serves as expectation value for a poisson distrution.
 
@@ -254,9 +269,9 @@ mutation_mode(μ::MutationRate{MM, MGP}) where {MM, MGP} = MM
 """
     Phylogeny
 
-`Phylogeny` of a cell population at time `t`. Each cell of the population is represented by a `CellLineage` holding its ancestry. Different cells may share part of their ancestry with each other and thus may have common ancestors.
+`Phylogeny` of a cell population at time `t`. Each member of the population is represented by a `CellLineage` holding ancestral information in terms of `Cell`s. A `Cell` defines a `uid` and contains information about the time of its birth, the number of its private mutations, and its position within a `CellLineage`. Population members descending from the same cell all have that `Cell` at the same position in their `CellLineage`.
 
-A `CellLineage` is represented as a vector of `Cell`s, where each `Cell` contains information about the time of its birth, the number of its private mutations, a unique identifier, and its position within `CellLineage`.
+The `Phylogeny`-generating dynamics are simulated with `AbstractProcess`es  .
 
 ## Fields
 * `lineages::Vector{CellLineage}`
@@ -276,10 +291,6 @@ Create an initial `Phylogeny` with `N0` (default `1`) somatically unmutated foun
     Phylogeny(μ::MutationRate, N0::Vector{<:Real}[, t0])
 
 In order to equip the founder cells with somatic mutations, a vector `N0` may be passed where `length(N0)` is the number of founder cells and the elements are the number of founder mutations.
-
-    Phylogeny(::CellLineage, μ::MutationRate, t0)
-
-Create `Phylogeny` from an existing CellLineage.
 
 See also: [`MutationRate`](@ref)
 """
@@ -339,11 +350,16 @@ end
 
 function (phylo::Phylogeny{TimeCounter})(lineage, uid, t)
     mother = lineage[end]
+    # mother.mutations = phylo.mutation_rate(mother, t)
+    # daughter1 = push!(
+    #     lineage,
+    #     Cell(uid+1, t, mother.generation+1, 0.0)
+    #     )
     daughter1 = push!(
         lineage,
         Cell(uid+1, t, mother.generation+1, phylo.mutation_rate(mother, t))
         )
-    return daughter1, copy(daughter1), uid + 1
+    return daughter1, copy(daughter1), uid+1
 end
 
 #--------------------------------------------------------------------------------------------------
