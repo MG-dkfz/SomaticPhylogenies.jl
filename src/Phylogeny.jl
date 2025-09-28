@@ -15,49 +15,51 @@ Represents the basic element of a `CellLineage`.
 
 See also: [`CellLineage`](@ref), [`MutationMode`](@ref), [`MutationRate`](@ref)
 """
-struct Cell{I<:Integer, F<:AbstractFloat, M<:Real}
-    uid::I
-    t::F
-    generation::I
-    mutations::M
+mutable struct Cell{I,F}
+    const uid::I
+    const generation::I
+    const t::F
+    mutations::F
 end
 
-Cell() = Cell(0, 0.0, 0, 0.0)
 Cell(uid::Integer) = Cell(uid, 0.0)
 Cell(uid::Integer, t::Real) = Cell(uid, t, 0.0)
-Cell(uid::Integer, t::Real, mutations::Real) = Cell(uid, t, 1, mutations)
-function Cell(uid::Integer, t::Real, generation::Integer, mutations::Real)
+Cell(uid::Integer, t::Real, mutations::Real) = Cell(uid, 1, t, mutations)
+function Cell(uid::Integer, generation::Integer, t::Real, mutations::Real)
     uid < zero(uid) && error("uid must not be negative")
-    uid, generation = promote(uid, generation)
-    Cell(uid, float(t), generation, float(mutations))
+    Cell(promote(uid, generation)..., promote(float(t), mutations)...)
 end
 
-# mutable struct Cell{I,F}
-#     const uid::I
-#     const generation::I
-#     const t::F
-#     mutations::F
+# struct Cell{I<:Integer, F<:AbstractFloat, M<:Real}
+#     uid::I
+#     t::F
+#     generation::I
+#     mutations::M
 # end
 
+# Cell() = Cell(0, 0.0, 0, 0.0)
 # Cell(uid::Integer) = Cell(uid, 0.0)
 # Cell(uid::Integer, t::Real) = Cell(uid, t, 0.0)
 # Cell(uid::Integer, t::Real, mutations::Real) = Cell(uid, t, 1, mutations)
-# function Cell(uid::Integer, generation::Integer, t::Real, mutations::Real)
+# function Cell(uid::Integer, t::Real, generation::Integer, mutations::Real)
 #     uid < zero(uid) && error("uid must not be negative")
-#     Cell(promote(uid, generation)..., promote(float(t), mutations)...)
+#     uid, generation = promote(uid, generation)
+#     Cell(uid, float(t), generation, float(mutations))
 # end
 
 
 nullcell() = Cell(0, 0.0, 0, 0.0)
 isnullcell(cell::Cell) = cell.uid == 0
 
-Base.show(io::IO, cell::Cell) = print(io, "Cell($(cell.uid), t = $(cell.t))")
+function Base.show(io::IO, cell::Cell)
+    print(io, "Cell($(cell.uid), k = $(cell.generation), t = $(cell.t))")
+end
 function Base.show(io::IO, ::MIME"text/plain", cell::Cell)
     s = string(typeof(cell))
     s *= "\n  * uid        : $(cell.uid)"
+    s *= "\n  * generation : $(cell.generation)"
     s *= "\n  * time       : $(cell.t)"
     s *= "\n  * mutations  : $(cell.mutations)"
-    s *= "\n  * generation : $(cell.generation)"
     print(io, s)
 end
 
@@ -142,6 +144,17 @@ function celllineage_at(t, lineage::CellLineage)
         end
     end
 end
+
+###################################################################################################
+
+"""
+    const Population = Vector{<:CellLineage}
+
+See also: [`Cell`](@ref), [`CellLineage`](@ref)
+"""
+const Population = Vector{<:CellLineage}
+
+initial_population(N0, t0) = [[Cell(k, t0, N0[k])] for k in eachindex(N0)]
 
 ###################################################################################################
 
@@ -294,24 +307,18 @@ In order to equip the founder cells with somatic mutations, a vector `N0` may be
 
 See also: [`MutationRate`](@ref)
 """
-struct Phylogeny{M<:MutationMode}
-    lineages::Vector{<:CellLineage}
+struct Phylogeny{K,L,M}
+    lineages::NTuple{K, L}
     t::AbstractFloat
     t0::AbstractFloat
-    mutation_rate::MutationRate
+    mutation_rate::NTuple{K, M}
     uid_counter::Integer
-    
-    function Phylogeny(
-        lineages::Vector{<:CellLineage},
-        t::Real,
-        t0::Real,
-        μ::MutationRate{MM},
-        uid_counter::Integer,
-        ) where MM
-        new{MM}(lineages, t, t0, μ, uid_counter)
-    end
 end
 
+# Constructors
+# -------------
+
+# i) initial Phylogeny{1} from MutationRate without founder mutations
 function Phylogeny(
     μ::MutationRate,
     N0::Integer=1;
@@ -320,22 +327,60 @@ function Phylogeny(
     Phylogeny(μ, zeros(N0); t0=t0)
 end
 
+# ii) initial Phylogeny{1} from MutationRate with founder mutations
 function Phylogeny(
     μ::MutationRate,
     N0::Vector{<:Real};
-    t0::Real=0.0
-    )
-    muttype = ifelse(mutgenprocess(μ) == PoissonProcess, Int, float)
-    Phylogeny(
-        [[Cell(n, t0, muttype(N0[n]))] for n in eachindex(N0)],
-        t0, t0, μ, length(N0),
-        )
+    t0::Real=0.0)
+    
+    Phylogeny(initial_population(N0, t0), t0, t0, μ, length(N0))
 end
 
-function Phylogeny(lineage::CellLineage, μ::MutationRate, t)
-    t = float(t)
-    Phylogeny([lineage], t, t, μ, lineage[end].uid)
+# iii) Phylogeny{1} from population and MutationRate
+function Phylogeny(
+    lineages::Population,
+    t0, t,
+    μ::MutationRate,
+    uid_counter
+    )
+    
+    Phylogeny((lineages, ), t0, t, (μ, ), uid_counter)
 end
+
+# iv) initial Phylogeny{K} from MutationRate without founder mutations
+function Phylogeny(
+    μ::Vector{<:MutationRate},
+    N0::Integer=1;
+    t0::Real=0.0
+    )
+    Phylogeny(μ, zeros(N0); t0=t0)
+end
+
+# v) initial Phylogeny{K} from MutationRate with founder mutations
+function Phylogeny(
+    μ::Vector{<:MutationRate},
+    N0::Vector{<:Real};
+    t0::Real=0.0)
+    
+    Phylogeny(initial_population(N0, t0), t0, t0, μ, length(N0))
+end
+
+# vi) Phylogeny{K} from population and K MutationRates
+function Phylogeny(
+    pop::Population,
+    t0, t,
+    μ::Vector{<:MutationRate},
+    uid_counter
+    )
+    populations = tuple(pop, fill(empty_population(), length(μ)-1)...)
+    Phylogeny(populations, t0, t, tuple(μ), uid_counter)
+end
+
+# iv) updated Phylogeny{1}
+function Phylogeny(phylo::Phylogeny, lineages, t, uid_counter)
+    Phylogeny(lineages, promote(phylo.t0, t)..., phylo.mutation_rate, uid_counter)
+end
+
 
 function (phylo::Phylogeny{ReplicationCounter})(lineage, uid, t)
     mother = lineage[end]
@@ -350,21 +395,21 @@ end
 
 function (phylo::Phylogeny{TimeCounter})(lineage, uid, t)
     mother = lineage[end]
-    # mother.mutations = phylo.mutation_rate(mother, t)
-    # daughter1 = push!(
-    #     lineage,
-    #     Cell(uid+1, t, mother.generation+1, 0.0)
-    #     )
+    mother.mutations = phylo.mutation_rate(mother, t)
     daughter1 = push!(
         lineage,
-        Cell(uid+1, t, mother.generation+1, phylo.mutation_rate(mother, t))
+        Cell(uid+1, t, mother.generation+1, 0.0)
         )
+    # daughter1 = push!(
+    #     lineage,
+    #     Cell(uid+1, t, mother.generation+1, phylo.mutation_rate(mother, t))
+    #     )
     return daughter1, copy(daughter1), uid+1
 end
 
 #--------------------------------------------------------------------------------------------------
 
-function Base.show(io::IO, phylo::Phylogeny)
+function Base.show(io::IO, phylo::Phylogeny{1})
     s  = "$(typeof(phylo))"
     s *= "\n  * Time             : $(phylo.t)"
     s *= "\n  * Population size  : $(length(phylo.lineages))"
@@ -372,26 +417,17 @@ function Base.show(io::IO, phylo::Phylogeny)
     print(io, s)
 end
 
-Base.length(phylo::Phylogeny) = length(phylo.lineages)
-Base.firstindex(phylo::Phylogeny) = 1
-Base.lastindex(phylo::Phylogeny) = length(phylo)
-function Base.getindex(phylo::Phylogeny, i::Int)
+Base.length(phylo::Phylogeny{1}) = length(phylo.lineages[1])
+Base.firstindex(phylo::Phylogeny{1}) = 1
+Base.lastindex(phylo::Phylogeny{1}) = length(phylo)
+function Base.getindex(phylo::Phylogeny{1}, i::Int)
     1 ≤ i ≤ length(phylo) || throw(BoundsError(phylo, i))
-    return phylo.lineages[i]
+    return phylo.lineages[1][i]
 end
-Base.getindex(phylo::Phylogeny, i::Number) = phylo[convert(Int, i)]
-Base.getindex(phylo::Phylogeny, I) = [phylo[i] for i in I]
-Base.iterate(phylo::Phylogeny, k=1) = k > length(phylo) ? nothing : (phylo[k], k+1)
+Base.getindex(phylo::Phylogeny{1}, i::Number) = phylo[convert(Int, i)]
+Base.getindex(phylo::Phylogeny{1}, I) = [phylo[i] for i in I]
+Base.iterate(phylo::Phylogeny{1}, k=1) = k > length(phylo) ? nothing : (phylo[k], k+1)
 Base.broadcastable(phylo::Phylogeny) = Ref(phylo)
-
-function Base.:+(phylo1::Phylogeny{M}, phylo2::Phylogeny{M}) where M <: MutationMode
-    !(phylo1.t ≈ phylo.t2) && error("Time points of observation of `Phylogeny`s must agree")
-    Phylogeny{M}(
-        vcat(phylo1.lineages, phylo2.lineages),
-        phylo1.t,
-        max(phylo1.uid_counter, phylo2.uid_counter)
-        )
-end
 
 
 ###################################################################################################
@@ -401,7 +437,7 @@ end
 
 Return the `MutationMode` of `Phylogeny`.
 """
-mutation_mode(phylo::Phylogeny{M}) where M <: MutationMode = M
+mutation_mode(phylo::Phylogeny) = mutation_mode(phylo.mutation_rate)
 
 """
     mutgenprocess(::Phylogeny) -> MutGenProcess

@@ -151,10 +151,27 @@ struct MoranProcess{F,I} <: AbstractProcess
         new{typeof(λ), typeof(N)}(λ, N, Δt)
     end
 end
+struct MoranProcess{K,F1,F2,I} <: AbstractProcess
+    λ::F1
+    N::I
+    Δt::F2
+    function MoranProcess(λ::F1, N::I, Δt::F2)
+        new{length(λ),F1,F2,I}(λ, N, Δt)
+    end
+end
+function MoranProcess(λ::Real, N::Integer, Δt::Real)
+    λ, Δt = float.([λ, Δt])
+    MoranProcess(λ, N, Δt)
+end
+function MoranProcess(λ::AbstractVector{<:Real}, N::Integer, Δt::Real)
+    Δt = float(Δt)
+    λ = float.(λ) 
+    MoranProcess(λ, N, Δt)
+end
 
 MoranProcess(N::Integer, Δt::Real) = MoranProcess(1.0, N, Δt)
 
-function Base.show(io::IO, process::MoranProcess)
+function Base.show(io::IO, process::MoranProcess{1})
     s = "$(typeof(process))"
     s *= "\n  * Turnover rate λ   : $(process.λ)"
     s *= "\n  * Population size N : $(process.N)"
@@ -164,7 +181,7 @@ end
 
 #--------------------------------------------------------------------------------------------------
 
-function (process::MoranProcess)(phylo::Phylogeny)
+function (process::MoranProcess{1})(phylo::Phylogeny)
     
     lineages = copy(phylo.lineages)
     t = phylo.t
@@ -184,19 +201,46 @@ function (process::MoranProcess)(phylo::Phylogeny)
         lineages[n_death] = daughter2
     end
     
-    return Phylogeny(lineages, t_stop, phylo.t0, phylo.mutation_rate, uid_count)
+    return Phylogeny(phylo, lineages, t_stop, uid_count)
 end
 
-
-function (process::MoranProcess)(μ::MutationRate, t0::Real=0.0)
+function (process::MoranProcess{1})(μ::MutationRate, t0::Real=0.0)
     process(Phylogeny(μ, process.N; t0=t0))
 end
 
-function (process::MoranProcess)(μ::MutationRate, N0::Vector, t0::Real=0.0)
+function (process::MoranProcess{1})(μ::MutationRate, N0::Vector, t0::Real=0.0)
     length(N0) != process.N && error("invalid number of founder cells")
     process(Phylogeny(μ, N0; t0=t0))
 end
 
+#--------------------------------------------------------------------------------------------------
+
+function (process::MoranProcess)(phylo::Phylogeny)
+    
+    lins_m, lins_c = population(phylo)
+    t = phylo.t
+    t_stop = phylo.t + process.Δt
+    uid_count = phylo.uid_counter
+    #rate = process.λ * process.N
+    
+    while t < t_stop
+        Nm = population_size(lins_m)
+        Nc = population_size(lins_c)
+        rate = process.λm * process.Nm + process.λc * process.Nc
+        t += rand(Exponential(1 / rate))
+        lins = ifelse(rand() < Nm / (Nm + Nc), lins_m, lins_c)
+        n_divide = rand(1 : population_size(lins))
+        n_death  = rand(1 : population_size(lins))
+        n_divide == n_death && continue
+        
+        daughter1, daughter2, uid_count = phylo(lins[n_divide], uid_count, t)
+        
+        lins[n_divide] = daughter1
+        lins[n_death]  = daughter2
+    end
+    
+    return Phylogeny(phylo, lineages, t_stop, uid_count)
+end
 ###################################################################################################
 
 """
@@ -249,9 +293,10 @@ end
 ###################################################################################################
 
 # struct SelectedClone
-#     process::AbstractProcess
-#     t_clone::Real
-#     s_clone::Real
+#     λm::F
+#     λc::F
+#     N::I
+#     Δt::F
 # end
 
 ###################################################################################################
